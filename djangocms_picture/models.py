@@ -20,7 +20,7 @@ import djangocms_text_ckeditor.fields
 import filer.fields.file
 import filer.fields.image
 import filer.fields.folder
-import aldryn_bootstrap3.LinkMixin
+from aldryn_bootstrap3.models import LinkMixin
 
 
 try:
