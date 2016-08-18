@@ -8,7 +8,13 @@ except ImportError:
     from urllib import parse as urlparse
 
 from django.conf import settings
+
+from django.conf.urls import patterns, url
+from django.core.exceptions import ImproperlyConfigured
+from django.http import HttpResponse
+from django.templatetags.static import static
 from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 
 from cms.plugin_base import CMSPluginBase
 from cms.plugin_pool import plugin_pool
@@ -49,7 +55,7 @@ class PicturePlugin(CMSPluginBase):
     render_template = "cms/plugins/picture.html"
     text_enabled = True
 
-    
+
 
     fieldsets = (
         (None, {'fields': (
