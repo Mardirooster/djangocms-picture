@@ -1,14 +1,28 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals, absolute_import
 
-from __future__ import unicode_literals
+from functools import partial
+import collections
 
-import os
-
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.encoding import python_2_unicode_compatible
+from django.utils.html import strip_tags
+from django.utils.translation import ugettext_lazy as _, ungettext
 
-from cms.models import CMSPlugin, Page
+import django.forms.models
+
+from cms.models.pluginmodel import CMSPlugin
+import cms.models
+import cms.models.fields
+
+from djangocms_attributes_field.fields import AttributesField
+import djangocms_text_ckeditor.fields
+import filer.fields.file
+import filer.fields.image
+import filer.fields.folder
+from aldryn_bootstrap3 import LinkMixin
+
+
 try:
     from cms.models import get_plugin_media_path
 except ImportError:
@@ -21,63 +35,129 @@ except ImportError:
 from cms.utils.compat.dj import python_2_unicode_compatible
 
 
+
 @python_2_unicode_compatible
-class Picture(CMSPlugin):
+class Picture(CMSPlugin, LinkMixin):
     """
     A Picture with or without a link.
     """
-    LEFT = "left"
-    RIGHT = "right"
-    CENTER = "center"
-    FLOAT_CHOICES = ((LEFT, _("left")),
-                     (RIGHT, _("right")),
-                     (CENTER, _("center")),
-                     )
+    file = filer.fields.image.FilerImageField(
+        verbose_name=_("file"),
+        blank=False,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+    )
+    alt = model_fields.MiniText(
+        _("alt"),
+        blank=True,
+        default='',
+    )
+    title = model_fields.MiniText(
+        _("title"),
+        blank=True,
+        default='',
+    )
+    description = model_fields.MiniText(_("description"),blank=True,default='',)
+    use_original_image = models.BooleanField(
+        _("use original image"),
+        blank=True,
+        default=False,
+        help_text=_(
+            "use the original full-resolution image (no resizing)."
+        )
+    )
+    override_width = models.IntegerField(
+        _("override width"),
+        blank=True,
+        null=True,
+        help_text=_(
+            'if this field is provided it will be used to scale image.'
+        )
+    )
+    override_height = models.IntegerField(
+        _("override height"),
+        blank=True,
+        null=True,
+        help_text=_(
+            'if this field is provided it will be used to scale image. '
+            'If aspect ration is selected - height will be calculated '
+            'based on that.'
+        )
+    )
+    aspect_ratio = models.CharField(
+        _("aspect ratio"),
+        max_length=10,
+        blank=True,
+        default='',
+        choices=constants.ASPECT_RATIO_CHOICES
+    )
+    thumbnail = models.BooleanField(
+        _("thumbnail"),
+        default=False,
+        blank=True,
+        help_text="add the 'thumbnail' border",
+    )
+    shape = models.CharField(
+        _('shape'),
+        max_length=64,
+        blank=True,
+        default='',
+        choices=(
+            ('rounded', 'rounded'),
+            ('circle', 'circle'),
+        )
+    )
 
-    image = models.ImageField(_("image"), upload_to=get_plugin_media_path)
-    url = models.CharField(
-        _("link"), max_length=255, blank=True, null=True,
-        help_text=_("If present, clicking on image will take user to link."))
-
-    page_link = models.ForeignKey(
-        Page, verbose_name=_("page"), null=True,
-        limit_choices_to={'publisher_is_draft': True}, blank=True,
-        help_text=_("If present, clicking on image will take user to "
-                    "specified page."))
-
-    alt = models.CharField(
-        _("alternate text"), max_length=255, blank=True, null=True,
-        help_text=_("Specifies an alternate text for an image, if the image"
-                    "cannot be displayed.<br />Is also used by search engines"
-                    "to classify the image."))
-
-    longdesc = models.CharField(
-        _("long description"), max_length=255, blank=True, null=True,
-        help_text=_("When user hovers above picture, this text will appear "
-                    "in a popup."))
-
-    float = models.CharField(
-        _("side"), max_length=10, blank=True, null=True, choices=FLOAT_CHOICES,
-        help_text=_("Move image left, right or center."))
-
-    width = models.IntegerField(_("width"), blank=True, null=True,
-                                help_text=_("Pixel"))
-    height = models.IntegerField(_("height"), blank=True, null=True,
-                                 help_text=_("Pixel"))
+    classes = model_fields.Classes()
+    img_responsive = models.BooleanField(
+        verbose_name='class: img-responsive',
+        default=True,
+        blank=True,
+        help_text='whether to treat the image as using 100% width of the '
+                  'parent container (sets the img-responsive class).'
+    )
 
     def __str__(self):
-        if self.alt:
-            return self.alt[:40]
-        elif self.image:
-            # added if, because it raised attribute error when file wasn't
-            # defined.
-            try:
-                return u"%s" % os.path.basename(self.image.name)
-            except AttributeError:
-                pass
-        return u"<empty>"
+        txt = 'Image'
 
-    def clean(self):
-        if self.url and self.page_link:
-            raise ValidationError(
-                _("You can enter a Link or a Page, but not both."))
+        if self.file_id and self.file.label:
+            txt = self.file.label
+        return txt
+
+    def srcset(self):
+        if not self.file:
+            return []
+        items = collections.OrderedDict()
+        if self.aspect_ratio:
+            aspect_width, aspect_height = tuple([int(i) for i in self.aspect_ratio.split('x')])
+        else:
+            aspect_width, aspect_height = None, None
+        for device in constants.DEVICES:
+            if self.override_width:
+                width = self.override_width
+            else:
+                # TODO: should this should be based on the containing col size?
+                width = device['width_gutter']
+            width_tag = str(width)
+            if aspect_width is not None and aspect_height is not None:
+                height = int(float(width)*float(aspect_height)/float(aspect_width))
+                crop = True
+            else:
+                if self.override_height:
+                    height = self.override_height
+                else:
+                    height = 0
+                crop = False
+            items[device['identifier']] = {
+                'size': (width, height),
+                'size_str': "{}x{}".format(width, height),
+                'width_str': "{}w".format(width),
+                'subject_location': self.file.subject_location,
+                'upscale': True,
+                'crop': crop,
+                'aspect_ratio': (aspect_width, aspect_height),
+                'width_tag': width_tag,
+            }
+
+        return items

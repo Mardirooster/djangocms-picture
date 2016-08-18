@@ -15,6 +15,33 @@ from cms.plugin_pool import plugin_pool
 
 from .models import Picture
 
+from cms.models import CMSPlugin
+from cms.plugin_base import CMSPluginBase
+from cms.plugin_pool import plugin_pool
+
+try:
+    from filer.admin.clipboardadmin import ajax_upload as filer_ajax_upload
+except ImportError:
+    filer_ajax_upload = None
+    warnings.warn("Drag and drop functionality is not avalable. "
+                  "Please update to django-filer>=1.1.1",
+                  Warning)
+
+from . import models, forms, constants
+
+link_fieldset = (
+    ('Link', {
+        'fields': (
+            'link_page', 'link_file', 'link_url', 'link_mailto', 'link_phone',
+        ),
+        'description': 'Choose one of the link types below.',
+    }),
+    ('Link options', {
+        'fields': (
+            ('link_target', 'link_anchor',),
+        ),
+    }),
+)
 
 class PicturePlugin(CMSPluginBase):
     model = Picture
@@ -22,25 +49,89 @@ class PicturePlugin(CMSPluginBase):
     render_template = "cms/plugins/picture.html"
     text_enabled = True
 
+    
+
+    fieldsets = (
+        (None, {'fields': (
+                'file',
+                'use_original_image',
+                'aspect_ratio',
+                'shape',
+                'thumbnail',
+                'alt',
+        )}),
+
+        ('Advanced', {
+            'classes': ('collapse',),
+            'fields': (
+                'title',
+                'override_width',
+                'override_height',
+                'classes',
+                'img_responsive',
+            ),
+        }),
+    )
+
     def render(self, context, instance, placeholder):
-        if instance.url:
-            link = instance.url
-        elif instance.page_link:
-            link = instance.page_link.get_absolute_url()
-        else:
-            link = ""
-        context.update({
-            'picture': instance,
-            'link': link,
-            'placeholder': placeholder
-        })
+        context.update({'instance': instance})
+        if callable(filer_ajax_upload):
+            # Use this in template to conditionally enable drag-n-drop.
+            context.update({'has_dnd_support': True})
         return context
 
+    def get_thumbnail(self, instance):
+        return instance.file.file.get_thumbnail({
+            'size': (40, 40),
+            'crop': True,
+            'upscale': True,
+            'subject_location': instance.file.subject_location,
+        })
+
     def icon_src(self, instance):
-        if getattr(settings, 'PICTURE_FULL_IMAGE_AS_ICON', False):
-            return instance.image.url
-        else:
-            return urlparse.urljoin(
-                settings.STATIC_URL, "cms/img/icons/plugins/image.png")
+        if instance.file_id:
+            thumbnail = self.get_thumbnail(instance)
+            return thumbnail.url
+        return ''
+
+    def get_plugin_urls(self):
+        urlpatterns = patterns(
+            '',
+            url(r'^ajax_upload/(?P<pk>[0-9]+)/$', self.ajax_upload,
+                name='bootstrap3_image_ajax_upload'),
+        )
+        return urlpatterns
+
+    @csrf_exempt
+    def ajax_upload(self, request, pk):
+
+        """
+        Handle drag-n-drop uploads.
+
+        Call original 'ajax_upload' Filer view, parse response and update
+        plugin instance file_id from it. Send original response back.
+        """
+        if not callable(filer_ajax_upload):
+            # Do not try to handle request if we were unable to
+            # import Filer view.
+            raise ImproperlyConfigured(
+                "Please, use django-filer>=1.1.1 to get drag-n-drop support")
+        filer_response = filer_ajax_upload(request, folder_id=None)
+
+        if filer_response.status_code != 200:
+            return filer_response
+
+        try:
+            file_id = json.loads(filer_response.content)['file_id']
+        except ValueError:
+            return HttpResponse(
+                json.dumps(
+                    {'error': 'received non-JSON response from Filer'}),
+                status=500,
+                content_type='application/json')
+        instance = self.model.objects.get(pk=pk)
+        instance.file_id = file_id
+        instance.save()
+        return filer_response
 
 plugin_pool.register_plugin(PicturePlugin)
