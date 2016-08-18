@@ -27,7 +27,7 @@ except ImportError:
                   "Please update to django-filer>=1.1.1",
                   Warning)
 
-from . import models, forms, constants
+from aldryn_bootstrap3 import models, forms, constants
 
 link_fieldset = (
     ('Link', {
