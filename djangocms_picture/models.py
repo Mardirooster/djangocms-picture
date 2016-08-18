@@ -21,7 +21,7 @@ import filer.fields.file
 import filer.fields.image
 import filer.fields.folder
 from aldryn_bootstrap3.models import LinkMixin
-import aldryn_bootstrap3.model_fields
+import aldryn_bootstrap3.model_fields as model_fields
 
 
 try:
