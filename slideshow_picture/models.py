@@ -39,7 +39,7 @@ from cms.utils.compat.dj import python_2_unicode_compatible
 
 
 @python_2_unicode_compatible
-class Picture(CMSPlugin, LinkMixin):
+class SlidePicture(CMSPlugin, LinkMixin):
     """
     A Picture with or without a link.
     """

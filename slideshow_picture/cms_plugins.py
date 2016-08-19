@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from cms.plugin_base import CMSPluginBase
 from cms.plugin_pool import plugin_pool
 
-from .models import Picture
+from .models import SlidePicture
 
 from cms.models import CMSPlugin
 from cms.plugin_base import CMSPluginBase
@@ -49,8 +49,8 @@ link_fieldset = (
     }),
 )
 
-class PicturePlugin(CMSPluginBase):
-    model = Picture
+class SlidePicturePlugin(CMSPluginBase):
+    model = SlidePicture
     name = _("Picture")
     render_template = "cms/plugins/picture.html"
     text_enabled = True
@@ -140,4 +140,4 @@ class PicturePlugin(CMSPluginBase):
         instance.save()
         return filer_response
 
-plugin_pool.register_plugin(PicturePlugin)
+plugin_pool.register_plugin(SlidePicturePlugin)
