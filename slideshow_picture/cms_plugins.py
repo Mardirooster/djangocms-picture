@@ -51,8 +51,8 @@ link_fieldset = (
 
 class SlidePicturePlugin(CMSPluginBase):
     model = SlidePicture
-    name = _("Picture")
-    render_template = "cms/plugins/picture.html"
+    name = _("SlidePicture")
+    render_template = "cms/plugins/slidepicture.html"
     text_enabled = True
 
 
