@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from setuptools import setup
-from djangocms_picture import __version__
+from slideshow_picture import __version__
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',
@@ -23,16 +23,16 @@ CLASSIFIERS = [
 ]
 
 setup(
-    name='djangocms-picture',
+    name='slideshow-picture',
     version=__version__,
     description='Picture plugin for django CMS',
     author='Divio AG',
     author_email='info@divio.ch',
-    url='https://github.com/divio/djangocms-picture',
+    url='https://github.com/Mardirooster/slideshow-picture',
     packages=[
-        'djangocms_picture',
-        'djangocms_picture.migrations',
-        'djangocms_picture.south_migrations'
+        'slideshow_picture',
+        'slideshow_picture.migrations',
+        'slideshow_picture.south_migrations'
     ],
     install_requires=[
         'django>=1.6',
