@@ -61,23 +61,22 @@ class SlidePicturePlugin(CMSPluginBase):
         (None, {'fields': (
                 'file',
                 'use_original_image',
-                'aspect_ratio',
-                'shape',
-                'thumbnail',
+                'title',
+                'description',
+                #'thumbnail',
                 'alt',
         )}),
 
         ('Advanced', {
             'classes': ('collapse',),
             'fields': (
-                'title',
                 'override_width',
                 'override_height',
                 'classes',
                 'img_responsive',
             ),
         }),
-    )
+    ) + link_fieldset
 
     def render(self, context, instance, placeholder):
         context.update({'instance': instance})
